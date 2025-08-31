@@ -1,0 +1,1649 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        752
+      ],
+      "id": "955e62cb-e01b-4333-b0b4-49caeae9fb88",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b6dadb08-3478-4a17-8b43-66a573b651b9",
+              "leftValue": "={{ $json.company }}",
+              "rightValue": "a",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1296,
+        80
+      ],
+      "id": "7f73ec00-42f4-4fa6-9a10-d6b14c2fff86",
+      "name": "contains company"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b6dadb08-3478-4a17-8b43-66a573b651b9",
+              "leftValue": "={{ $json.company }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -912,
+        336
+      ],
+      "id": "671ae6c1-59de-472d-947f-a00299571715",
+      "name": "contains company2"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        352
+      ],
+      "id": "0df3ef50-6d12-444e-9428-e69969803013",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        624
+      ],
+      "id": "9c3dee25-c51a-41fb-aa13-6e7452aa6280",
+      "name": "Azure OpenAI Chat Model",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "3tLujjv8UOrS7ogf",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combineBySql",
+        "query": "SELECT\n  l.url,\n  l.section,\n  l.title,\n  l.date,\n  l.date_iso,\n  COALESCE(ie.output.company, '') AS company,\n  l.text\nFROM input2 AS l\nLEFT JOIN input1 AS ie\n  ON ie.output.url = l.url\nORDER BY l.date_iso DESC;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -96,
+        592
+      ],
+      "id": "f500f75d-b00e-4898-aaed-333e5d875a26",
+      "name": "Merge",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        80
+      ],
+      "id": "7944cb39-2a47-4f8d-818b-0a46340b12ed",
+      "name": "Merge1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load company map from environment variable (JSON string)\nconst companyMap = JSON.parse($env[\"COMPANY_MAP\"]);\n\n// Convert to arrays of valid names\nconst validCompanies = Object.values(companyMap).map(v => v.toLowerCase());\nconst validKeys = Object.keys(companyMap).map(k => k.toLowerCase());\n\n// Keep only items whose company matches either a key or value in COMPANY_MAP\nconst filtered = items.filter(item => {\n  const company = (item.json.company || \"\").toLowerCase();\n  return validCompanies.includes(company) || validKeys.includes(company);\n});\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        96
+      ],
+      "id": "d1f91076-b106-4ce6-8036-cf34b5fee873",
+      "name": "Filter ByTarget Companies"
+    },
+    {
+      "parameters": {
+        "url": "http://tm-scraper:8000/scrape?cutoff=2025-08-01",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1504,
+        320
+      ],
+      "id": "04ce4bc4-7bc4-4815-a151-a921a6bbc1d6",
+      "name": "The Manufacturer Scrapper",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load company map from environment variable\nconst companyMap = JSON.parse($env[\"COMPANY_MAP\"]);\nconsole.log(companyMap)\n\nfor (const item of items) {\n  const textLower = (item.json.text || \"\").toLowerCase();\n  let matched = \"\";\n\n  for (const [key, properName] of Object.entries(companyMap)) {\n    if (textLower.includes(key)) {\n      matched = properName;\n      break;\n    }\n  }\n\n  item.json.company = matched;\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        336
+      ],
+      "id": "c960a4d8-fc82-4ccd-8357-3357c976dae8",
+      "name": "Match Target Companies",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }} \n{{ $json.url }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"url\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"company\": {\n\t\t\t\"type\": \"string\"\n\t\t}\n\t}\n}",
+        "options": {
+          "systemPromptTemplate": "You are given a list of JSON objects representing manufacturing-related articles. \nEach object contains fields: \"url\", \"section\", \"title\", \"date\", \"date_iso\", \"company\", and \"text\".\n\nYour task:\n- Read the article text carefully.\n- Identify the **main company that the article is primarily about** (not just mentioned).\n- If no clear main company exists, leave the \"company\" field as an empty string \"\".\n- Return ONLY a JSON list, where each object has exactly this structure (in the same order):\n  {{ \"url\": ..., \"company\": ... }}\n\nConstraints:\n- Do not hallucinate companies that are not in the text.\n- If multiple companies are mentioned, pick the one most central to the article’s subject.\n- Do not include extra commentary or explanation—only the JSON output.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        352
+      ],
+      "id": "b404c828-2ab7-4226-bbac-1883af100f13",
+      "name": "Information Extractor Company",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e52d4b99-47e9-444c-aaf6-2b8c9ff2fac6",
+              "leftValue": "={{ $json.company }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        96,
+        592
+      ],
+      "id": "424d30e1-5594-414e-9c50-adf649292116",
+      "name": "Filter Empty Company"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "171ec960-f6de-4734-8743-a263bd696a6d",
+              "leftValue": "={{ $json.text.length }}",
+              "rightValue": 400,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        400
+      ],
+      "id": "9e535a25-6647-4a79-ae4b-684d9fce86a3",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\nimport unicodedata\n\ndef sanitize_text(raw: str) -> str:\n   \n    if not raw:\n        return \"\"\n\n    # Unicode normalize (e.g. fancy quotes → normal quotes)\n    text = unicodedata.normalize(\"NFKC\", raw)\n\n    # Remove control chars (except \\n and \\t)\n    text = re.sub(r\"[\\x00-\\x08\\x0b-\\x1f\\x7f-\\x9f]\", \"\", text)\n\n    # Optional: remove weird symbols (keep letters, numbers, punctuation, basic symbols)\n    text = re.sub(r\"[^\\w\\s\\.,;:!?%&()\\-/'\\\"]+\", \" \", text)\n\n    # Collapse whitespace\n    text = re.sub(r\"[ \\t]+\", \" \", text)         # multiple spaces → one\n    text = re.sub(r\"\\n\\s*\\n+\", \"\\n\", text)    # collapse blank lines\n\n    return text.strip()\n\n\n\n\nfor item in _input.all():\n  item.json.text=sanitize_text(item.json.text)\nreturn _input.all()"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        400
+      ],
+      "id": "258f84ec-acdc-4071-97a3-cfd19f75253a",
+      "name": "Sanitize Text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://tm-scraper:8000/profanity",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1568,
+        400
+      ],
+      "id": "73b8bcd8-7828-44af-b4c6-0c0a4cd3b224",
+      "name": "Profanity Check"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.url }}\n{{ $json.text }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"news_mentions\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"website_updates\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"product_launches\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"hiring_trends\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"text\": { \"type\": \"string\" },\n          \"hires\": { \"type\": \"integer\" },\n          \"layoffs\": { \"type\": \"integer\" },\n          \"net_change\": { \"type\": \"integer\" }\n        },\n        \"required\": [\"text\", \"hires\", \"layoffs\", \"net_change\"]\n      }\n    },\n    \"event_participation\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"competitors\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"competitor_activity\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"recent_activity\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"policies_mention\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"text\": { \"type\": \"string\" },\n          \"issuing_body\": { \"type\": \"string\" },\n          \"year\": { \"type\": \"integer\" },\n          \"valid\": { \"type\": \"boolean\" }\n        },\n        \"required\": [\"text\", \"issuing_body\"]\n      }\n    },\n    \"certifications_mention\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"text\": { \"type\": \"string\" },\n          \"standard_code\": { \"type\": \"string\" },\n          \"issuing_body\": { \"type\": \"string\" },\n          \"year\": { \"type\": \"integer\" },\n          \"valid\": { \"type\": \"boolean\" }\n        },\n        \"required\": [\"text\", \"standard_code\", \"issuing_body\"]\n      }\n    },\n    \"investments\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"text\": { \"type\": \"string\" },\n          \"value\": { \"type\": \"number\" }\n        },\n        \"required\": [\"text\", \"value\"]\n      }\n    },\n    \"earnings_reports\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"patent_filings\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    },\n    \"impact\": {\n      \"type\": \"string\",\n      \"enum\": [\"high\", \"medium\", \"low\", \"\"]\n    },\n    \"company\": {\n      \"type\": \"string\"\n    },\n    \"url\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"url\"]\n}\n",
+        "options": {
+          "systemPromptTemplate": "You are an information extraction assistant.\nYou will always receive two inputs:\n1) text: raw content\n2) url: the source of that text\n\nYour task:\n- Carefully analyze the text.\n- Extract information into the JSON object defined below.\n- Do not guess or hallucinate values. Only include information that is explicitly present or unambiguously inferred.\n- If a field cannot be confidently extracted, return an empty list [] or empty string \"\" as appropriate.\n- Always return valid JSON only, no extra text.\n\nOutput format (exact keys, default empty values):\n{{\n  \"news_mentions\": [],\n  \"website_updates\": [],\n  \"product_launches\": [],\n  \"hiring_trends\": [],            // array of objects, see item shape below\n  \"event_participation\": [],\n  \"company\": \"\",\n  \"competitors\": [],\n  \"competitor_activity\": [],\n  \"recent_activity\": [],\n  \"policies_mention\": [],\n  \"certifications_mention\": [],\n  \"investments\": [],\n  \"earnings_reports\": [],\n  \"patent_filings\": [],\n  \"impact\": \"\",\n  \"url\": \"\"\n}}\n\nHiring trend item shape (use this for each array entry in \"hiring_trends\"):\n{{\n  \"text\": \"\",        // short snippet from the article about hiring/layoffs\n  \"hires\": 0,        // integer count of new hires if explicitly stated; else 0\n  \"layoffs\": 0,      // integer count of layoffs if explicitly stated; else 0\n  \"net_change\": 0    // hires - layoffs if both are present; else 0\n}}\n\nRules:\n- All list fields must always return a JSON array of strings (except \"hiring_trends\", which is an array of objects as specified). If no relevant content is found, return [].\n- \"company\" : is the MAIN company that the article talks about. You SHOULD find it.\n- \"hiring_trends\":\n  • Parse explicit numeric counts only (digits like 250, 1,500). Do NOT infer numbers from vague terms (e.g., “hundreds”, “several”). If only vague wording exists, keep \"text\" and leave numeric fields as 0.\n  • When both hires and layoffs are present, compute \"net_change\" = hires - layoffs (can be negative).\n  • If a single total net figure is explicitly stated (e.g., “net loss of 300 roles”), set \"net_change\" to that value and keep hires/layoffs at 0 unless explicitly provided.\n  • If counts are given per period (e.g., “this quarter”), include that wording inside \"text\"; do not add extra fields.\n- Certification mention item (each entry inside \"certifications_mention\"):\n{{\n  \"text\": \"\",\n  \"standard_code\": \"\",\n  \"issuing_body\": \"\",\n  \"year\": 0,\n}}\n- \"investments\": include funding rounds, strategic investments, grants, or capital injections. \n  Store each as an object with:\n    • \"text\": the original descriptive snippet (e.g., \"Raised Series B $35M led by X\")\n    • \"value\": the numeric amount parsed from the text (e.g., 35000000). \n  If no numeric amount can be confidently extracted, set \"value\" to 0.\n- \"earnings_reports\": include short strings summarizing earnings results/guidance (e.g., “Q2 revenue +12% YoY; EPS $0.42; guidance lowered”).\n- \"patent_filings\": include short strings naming patent titles/IDs or a concise description (e.g., “US 2025/0123456 A1—Robotic welding system”).\n- Impact classification (\"impact\") must be one of \"high\", \"medium\", \"low\", or \"\" (if not determinable). Use these guidelines:\n  • High: events likely to materially affect survival/trajectory of the company or reshape the industry (e.g., large financial losses, bankruptcy, major litigation/regulatory action, significant layoffs, transformative M&A, industry-wide policy shifts).\n  • Medium: meaningful developments with moderate effect (e.g., sizeable expansions, notable partnerships, product recalls, mid-sized acquisitions, earnings beats/misses with limited outlook change).\n  • Low: routine/minor updates (e.g., opening a new local store, small-scale hiring, attending a local event).\n  • If impact cannot be determined confidently, return \"\".\n- \"url\" must always return the provided input URL without modification.\n- Context use: Read the text carefully, including sentences/lines immediately before and after each mention, to capture meaning; never invent details.\n- If uncertain, leave fields as [] or \"\" (and numeric hiring fields as 0).\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        400
+      ],
+      "id": "8502d617-af3d-4164-8571-771794a6f76e",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": "o3-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        688
+      ],
+      "id": "3671210a-8703-4e14-abf3-b9f0a0c90708",
+      "name": "Azure OpenAI Chat Model1",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "JeahRRVKg4Ws7dUG",
+          "name": "Azure Open AI account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tm-scraper:8000/stocks",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2144,
+        1232
+      ],
+      "id": "19523beb-f25f-402c-a1a9-60c6af6557cd",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        1232
+      ],
+      "id": "b116b7d7-d1b8-4fcd-8ec9-b583ce73afb7",
+      "name": "Link"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "=V2_stocks_companies",
+        "fields": "=output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        2448,
+        1232
+      ],
+      "id": "6470525f-fa98-42b4-b5c6-43355abd61ef",
+      "name": "Insert documents1",
+      "credentials": {
+        "mongoDb": {
+          "id": "HB60Q6XZfBKZdiAy",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "=V2_signals_companies",
+        "fields": "output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        2448,
+        400
+      ],
+      "id": "c4650dfd-376a-4fac-b5d9-bbee87d7a04b",
+      "name": "Insert documents2",
+      "credentials": {
+        "mongoDb": {
+          "id": "HB60Q6XZfBKZdiAy",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "title": "companies_signals",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.grafana",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        400
+      ],
+      "id": "83fcab2b-371f-4153-9c3f-5c3444bd3276",
+      "name": "Create a dashboard",
+      "credentials": {
+        "grafanaApi": {
+          "id": "mcDUL2GBmbh8Xn5h",
+          "name": "Grafana account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "title": "companies_signals",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.grafana",
+      "typeVersion": 1,
+      "position": [
+        2816,
+        1232
+      ],
+      "id": "e560c868-7bb6-4352-b0cd-f4d30771d7ea",
+      "name": "Create a dashboard1",
+      "credentials": {
+        "grafanaApi": {
+          "id": "mcDUL2GBmbh8Xn5h",
+          "name": "Grafana account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "DATA COLLECTION\n",
+        "height": 848,
+        "width": 256
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1600,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "f5c9bdd6-982a-4b27-ad22-3f71876443ab",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "CLEANING & EXTRACTION",
+        "height": 848,
+        "width": 2560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1312,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "ed5bdadd-97d6-4d54-bf58-c731cdf31c84",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "ENRICHMENT",
+        "height": 1152,
+        "width": 976
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1344,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "25cdb1bc-7992-4230-89b4-a608e7407428",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "STORAGE",
+        "height": 1152,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2352,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "3a0a15d7-fdd6-4d2d-90c8-35d42f1a8d9e",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "DASHBOARD & ANALYSIS",
+        "height": 1152,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2688,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "92f49cef-2b17-4f88-9181-81c511e9033f",
+      "name": "Sticky Note4"
+    }
+  ],
+  "pinData": {
+    "HTTP Request": [
+      {
+        "json": {
+          "output": {
+            "company": "airbus",
+            "symbol": "AIR",
+            "data": {
+              "Global Quote": {
+                "01. symbol": "AIR",
+                "02. open": "76.0000",
+                "03. high": "76.4400",
+                "04. low": "74.7600",
+                "05. price": "75.6600",
+                "06. volume": "206271",
+                "07. latest trading day": "2025-08-29",
+                "08. previous close": "75.8100",
+                "09. change": "-0.1500",
+                "10. change percent": "-0.1979%"
+              }
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "company": "boeing",
+            "symbol": "BA",
+            "data": {
+              "Global Quote": {
+                "01. symbol": "BA",
+                "02. open": "236.1300",
+                "03. high": "238.0500",
+                "04. low": "233.1700",
+                "05. price": "234.6800",
+                "06. volume": "5008622",
+                "07. latest trading day": "2025-08-29",
+                "08. previous close": "236.1600",
+                "09. change": "-1.4800",
+                "10. change percent": "-0.6267%"
+              }
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "company": "siemens",
+            "symbol": "SIE.DE",
+            "data": {
+              "Global Quote": {
+                "01. symbol": "SIE.DE",
+                "02. open": "235.2000",
+                "03. high": "240.6000",
+                "04. low": "234.7500",
+                "05. price": "236.6000",
+                "06. volume": "1129542",
+                "07. latest trading day": "2025-08-29",
+                "08. previous close": "236.8500",
+                "09. change": "-0.2500",
+                "10. change percent": "-0.1056%"
+              }
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "company": "essity",
+            "symbol": "ESSITY-B.ST",
+            "data": {}
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "company": "atlas copco",
+            "symbol": "ATCOA.ST",
+            "data": {}
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "company": "porsche",
+            "symbol": "POAHY",
+            "data": {
+              "Global Quote": {
+                "01. symbol": "POAHY",
+                "02. open": "4.1900",
+                "03. high": "4.2200",
+                "04. low": "4.1800",
+                "05. price": "4.2100",
+                "06. volume": "60745",
+                "07. latest trading day": "2025-08-29",
+                "08. previous close": "4.2500",
+                "09. change": "-0.0400",
+                "10. change percent": "-0.9412%"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Information Extractor Company": [
+      {
+        "json": {
+          "output": {
+            "url": "https://www.themanufacturer.com/articles/harry-minns-reflections-on-erp-implementation-after-a-decade-in-the-trenches/",
+            "company": ""
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "url": "https://www.themanufacturer.com/articles/construction-for-advanced-manufacturing-collaborative-working-to-solve-complex-equipment-installation/",
+            "company": "Etex"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "url": "https://www.themanufacturer.com/articles/additive-manufacturing-delivers-cleaner-faster-shipbuilding/",
+            "company": "Malin Marine Consultants"
+          }
+        }
+      }
+    ],
+    "Information Extractor": [
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "New study provides a digital roadmap to accelerate net zero transition in the UK steel sector"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [
+              "AISTech, the Iron and Steel Technology Conference"
+            ],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "University of Warwick team developed a strategic digital roadmap to fast-track the UK steel sector's transition to net zero",
+              "Research findings were presented at AISTech and plans for a dedicated practitioner's report are underway"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "Network received additional funding totaling almost 1m aimed at supporting UK SMEs with adoption of new industrial digital technologies",
+                "value": 1000000
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "University of Warwick - WMG",
+            "url": "https://www.themanufacturer.com/articles/accelerate-net-zero-steel-in-the-uk/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Acquired sustainable HQ in Newmarket using a 787,500 finance package from Lloyds",
+              "Aims to double annual turnover from 2.5m to 5m over the next four years",
+              "Investing in renewable energy solutions including solar, wind, and battery storage to run completely on renewable energy by 2028"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "787,500 finance package from Lloyds used to purchase a site in Newmarket",
+                "value": 787500
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Almath Crucibles",
+            "url": "https://www.themanufacturer.com/articles/ceramics-manufacturer-acquires-sustainable-hq-in-newmarket/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "Baker & Baker receives approval from the Science Based Targets initiative for its near and long-term science-based emissions reduction targets"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Commenced energy and carbon-reduction modelling across its manufacturing sites",
+              "Installed a large solar panel array at its Santo Tirso site in Portugal",
+              "Engaged with key ingredient suppliers on decarbonisation journeys"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [
+              {
+                "text": "Received approval from the Science Based Targets initiative for its near and long-term science-based emissions reduction targets",
+                "standard_code": "",
+                "issuing_body": "Science Based Targets initiative",
+                "year": 2025,
+                "valid": true
+              }
+            ],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Baker & Baker",
+            "url": "https://www.themanufacturer.com/articles/bakery-products-manufacturer-baker-baker-receives-approval-from-the-science-based-targets-initiative-sbti/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Launched the Mmmake Your Mark campaign to address workforce challenges in the UK food and drink industry"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Food & Drink Federation (FDF)",
+            "url": "https://www.themanufacturer.com/articles/a-bold-new-talent-strategy-for-the-food-and-drink-industry/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "low",
+            "company": "Essity",
+            "url": "https://www.themanufacturer.com/articles/essity-highlights-power-of-apprenticeships-to-unlock-high-skill-careers/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "Electrolux Professional appoints Ricardo Rossato as head of food sales for UK & Ireland"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [
+              {
+                "text": "Ricardo Rossato appointed as head of food sales for UK & Ireland as part of Electrolux Professional's growth strategy",
+                "hires": 0,
+                "layoffs": 0,
+                "net_change": 0
+              }
+            ],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Electrolux Professional announces the appointment of Ricardo Rossato to drive its expansion in UK & Ireland"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Electrolux Professional",
+            "url": "https://www.themanufacturer.com/articles/electrolux-professional-appoints-ricardo-rossato-as-head-of-food-sales-for-uk-ireland/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "low",
+            "company": "Atlas Copco",
+            "url": "https://www.themanufacturer.com/articles/atlas-copco-and-university-college-birmingham-partner-to-address-uk-battery-manufacturing-skills-gap/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "ADS members raised over 12,500 for charity in the inaugural ADS Charity Cycle"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [
+              "ADS Charity Cycle"
+            ],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "The inaugural ADS Charity Cycle saw participants cycle 478 miles and raise funds for five UK charities"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "low",
+            "company": "ADS Group",
+            "url": "https://www.themanufacturer.com/articles/ads-members-raise-over-12500-for-charity/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [
+              {
+                "text": "Forza Doors has grown its workforce by 18% over the past two years",
+                "hires": 0,
+                "layoffs": 0,
+                "net_change": 0
+              }
+            ],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Celebrated its 15th anniversary with a 14% uplift in annual revenue and implemented a major investment strategy to expand manufacturing capacity and workforce"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "Committed more than 3m over the past two years to expanding and upgrading its manufacturing facility",
+                "value": 3000000
+              }
+            ],
+            "earnings_reports": [
+              "14% uplift in annual revenue"
+            ],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Forza Doors",
+            "url": "https://www.themanufacturer.com/articles/forza-doors-marks-15th-year-with-14-growth-and-major-investment/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "Coventry manufacturer aims to increase safety in a post-Grenfell world"
+            ],
+            "website_updates": [],
+            "product_launches": [
+              "120-minute curtain wall system that prevents fire spread both inside and outside of buildings"
+            ],
+            "hiring_trends": [
+              {
+                "text": "With the huge backlog of work needed across the construction sector, we are confident that we can soon bring in more staff and potentially grow within the Innovation Centre over the coming years.",
+                "hires": 0,
+                "layoffs": 0,
+                "net_change": 0
+              }
+            ],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Returned to the Business Innovation Centre in Binley at the former Coventry base after a restructure",
+              "Re-established UK presence following previous ventures in Europe, the US, and Australia"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Aluflam",
+            "url": "https://www.themanufacturer.com/articles/coventry-manufacturer-aims-to-increase-safety-in-a-post-grenfell-world/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [
+              {
+                "text": "Surefit Fitted Furniture is expected to add three new jobs after investing in a CNC machine and design software.",
+                "hires": 3,
+                "layoffs": 0,
+                "net_change": 3
+              },
+              {
+                "text": "C&E Aluminium Systems gained one new job along with a 20% productivity boost and significant time savings.",
+                "hires": 1,
+                "layoffs": 0,
+                "net_change": 1
+              },
+              {
+                "text": "Reverse Engineering is creating five new jobs as it invests in a CNC fibre laser and brings processes in‐house.",
+                "hires": 5,
+                "layoffs": 0,
+                "net_change": 5
+              }
+            ],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Five manufacturing firms on a rural industrial estate have embraced digital transformation by creating tailored digital roadmaps, boosting productivity, and realizing efficiency gains."
+            ],
+            "policies_mention": [
+              {
+                "text": "Government-backed programme helps SMEs adopt new technologies and digital leadership skills.",
+                "issuing_body": "government",
+                "year": 0,
+                "valid": true
+              }
+            ],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "Together, the companies invested 181,000 in technology projects with Made Smarter grants.",
+                "value": 181000
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Made Smarter UK",
+            "url": "https://www.themanufacturer.com/articles/digital-drive-backed-by-made-smarter-unites-five-firms-on-rural-estate-for-growth-and-jobs/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [
+              "CAST-PRO"
+            ],
+            "hiring_trends": [
+              {
+                "text": "The project has laid the foundation for scaling operations and is expected to create four new warehouse roles.",
+                "hires": 4,
+                "layoffs": 0,
+                "net_change": 4
+              }
+            ],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Invested 40,000 to replace manual, paper-based inventory processes with a cloud-based solution.",
+              "Implemented IFS's WaDaCo system fully integrated with ERP to digitize warehouse processes.",
+              "Achieved a 25% boost in warehouse productivity and eliminated manual errors."
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "Invested 40,000 to replace manual, paper-based inventory processes with a cloud-based solution.",
+                "value": 40000
+              },
+              {
+                "text": "Received a 20,000 grant from Made Smarter.",
+                "value": 20000
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "C-TEC",
+            "url": "https://www.themanufacturer.com/articles/c-tec-sparks-smarter-growth-with-digital-overhaul/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "BAE subsidiary Bohemia Interactive Simulations wins a five-year enterprise license contract for Canadian Army simulation training"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Awarded a five-year enterprise license contract to deliver digital virtual training using BISim's Digital Virtual Trainer (DVT) solution to support mission readiness for the Canadian Army"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "BAE Systems",
+            "url": "https://www.themanufacturer.com/articles/bae-subsidiary-wins-canadian-army-simulation-training-contract/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Rockwell Automation",
+            "url": "https://www.themanufacturer.com/articles/ai-at-the-forefront-as-manufacturers-confront-rising-cyber-security-risks/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "Research from Barclays Corporate and The Manufacturer shows 75% of UK manufacturers record skills shortages as a top growth obstacle.",
+              "A 2024 paper published by the International Monetary Fund noted that advanced manufacturing is among the sectors with the greatest skills gap increase."
+            ],
+            "website_updates": [],
+            "product_launches": [
+              "Thermo Scientific developed the Scios 3 FIB-SEM, an integrated FIB and SEM system with advanced automation capabilities for high-throughput materials analysis."
+            ],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Thermo Fisher Scientific",
+            "url": "https://www.themanufacturer.com/articles/closing-the-industry-skills-gap-with-automated-microscopy/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [
+              "Deployment of eight-seat Auto-Shuttle from mid-October",
+              "Introduction of the fully driverless Auto-DollyTug in early January 2026"
+            ],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Signed its first deal in the North East with Tees Valley Combined Authority worth nearly 1m",
+              "Collaborating with Teesside International Airport to develop an autonomous baggage and passenger moving system"
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "high",
+            "company": "Aurrigo International",
+            "url": "https://www.themanufacturer.com/articles/aurrigo-moves-into-the-north-east-with-global-first-at-teesside-international-airport/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [
+              "Launch of nine-seater passenger Auto-Shuttle for Canada's first all-season, medium-speed autonomous shuttle trial in Kanata"
+            ],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Deployment of Auto-Shuttle in Kanata, marking Aurrigo International's expansion into North America"
+            ],
+            "policies_mention": [
+              {
+                "text": "Policy recommendations to guide future AV regulations",
+                "issuing_body": "",
+                "year": 0,
+                "valid": false
+              }
+            ],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Aurrigo International",
+            "url": "https://www.themanufacturer.com/articles/aurrigo-launches-canadas-first-all-season-medium-speed-autonomous-shuttle-trial/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "BAE Systems invested in Oxford Dynamics to integrate AI technology into its Prophesea platform."
+            ],
+            "policies_mention": [
+              {
+                "text": "Embodies the UK Government's Strategic Defence Review call to action: accelerate innovation, deliver sovereign capability and build a more integrated and lethal force",
+                "issuing_body": "UK Government",
+                "year": 0,
+                "valid": true
+              }
+            ],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "BAE Systems strategic investment in Oxford Dynamics",
+                "value": 0
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "BAE Systems",
+            "url": "https://www.themanufacturer.com/articles/bae-systems-to-build-on-ai-pedigree-through-investment-in-uk-start-up-oxford-dynamics/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [
+              "Additive manufacturing helps British cyclist beat 200m world record"
+            ],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Renishaw's additive manufacturing technology enabled British cyclist Matthew Richardson to break the 200m world record and supported other record attempts by British Cycling athletes."
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "low",
+            "company": "Renishaw",
+            "url": "https://www.themanufacturer.com/articles/additive-manufacturing-helps-british-cyclist-beat-200m-world-record/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Launched new Environmental & Social Value Certification to help UK SMEs demonstrate social impact and win new orders"
+            ],
+            "policies_mention": [
+              {
+                "text": "UK Government's latest Social Value Model",
+                "issuing_body": "UK Government",
+                "year": 2025,
+                "valid": true
+              },
+              {
+                "text": "Procurement Act",
+                "issuing_body": "UK Government",
+                "year": 2023,
+                "valid": true
+              }
+            ],
+            "certifications_mention": [
+              {
+                "text": "Launched new Environmental & Social Value (ESV) Certification to showcase social impact",
+                "standard_code": "",
+                "issuing_body": "Made in Britain",
+                "year": 2025,
+                "valid": true
+              }
+            ],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Made in Britain",
+            "url": "https://www.themanufacturer.com/articles/british-manufacturers-set-to-stand-out-and-win-new-orders-with-newly-released-certification/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [
+              "Completed second phase of an additive manufacturing project demonstrating a topology‐optimised tapping ring with 10% emissions reduction, 90% faster lead times, and 13% reduction in vessel weight."
+            ],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [
+              {
+                "text": "MariLight 2.0 funded by the Department for Transport's Clean Maritime Demonstration Competition (Round 4)",
+                "value": 0
+              }
+            ],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "Malin Marine Consultants",
+            "url": "https://www.themanufacturer.com/articles/additive-manufacturing-delivers-cleaner-faster-shipbuilding/"
+          }
+        }
+      },
+      {
+        "json": {
+          "output": {
+            "news_mentions": [],
+            "website_updates": [],
+            "product_launches": [],
+            "hiring_trends": [],
+            "event_participation": [],
+            "competitors": [],
+            "competitor_activity": [],
+            "recent_activity": [],
+            "policies_mention": [],
+            "certifications_mention": [],
+            "investments": [],
+            "earnings_reports": [],
+            "patent_filings": [],
+            "impact": "medium",
+            "company": "McLaughlin & Harvey",
+            "url": "https://www.themanufacturer.com/articles/construction-for-advanced-manufacturing-collaborative-working-to-solve-complex-equipment-installation/"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "The Manufacturer Scrapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contains company": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Match Target Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contains company2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor Company",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor Company",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Filter Empty Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Filter ByTarget Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "The Manufacturer Scrapper": {
+      "main": [
+        [
+          {
+            "node": "contains company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Target Companies": {
+      "main": [
+        [
+          {
+            "node": "contains company2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor Company": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Empty Company": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Filter ByTarget Companies": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Text": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Profanity Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Profanity Check": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Insert documents2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Insert documents1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert documents2": {
+      "main": [
+        [
+          {
+            "node": "Create a dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert documents1": {
+      "main": [
+        [
+          {
+            "node": "Create a dashboard1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a dashboard": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "38d0b598-0d1b-45a7-af52-a8a621787693",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "62eeb37563064af6681530d786319a299d8757915b2aa0e502d8cc7a5faf5f6c"
+  },
+  "id": "vdPEYGfD1w2AiUXP",
+  "tags": []
+}
